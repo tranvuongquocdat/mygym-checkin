@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <title>My Gym Check-in</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --bg: #f1f5f9; --card: #ffffff; --ink: #0f172a; --muted: #64748b;
+      --line: #e2e8f0; --accent: #4338ca; --accent-ink: #ffffff;
+      --field: #f8fafc; --shadow: 0 1px 3px rgba(15,23,42,.08);
+      --green: #15803d; --amber: #b45309; --red: #b91c1c;
+      --green-bg: #f0fdf4; --amber-bg: #fffbeb; --red-bg: #fef2f2;
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a; --card: #1e293b; --ink: #f1f5f9; --muted: #94a3b8;
+      --line: #334155; --accent: #6366f1; --accent-ink: #ffffff;
+      --field: #0f172a; --shadow: 0 1px 3px rgba(0,0,0,.4);
+      --green: #4ade80; --amber: #fbbf24; --red: #f87171;
+      --green-bg: #14532d; --amber-bg: #451a03; --red-bg: #450a0a;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      color: var(--ink); background: var(--bg);
+      transition: background .2s, color .2s;
+    }
+    .hidden { display: none !important; }
+
+    .theme-btn {
+      border: 1px solid var(--line); background: var(--card); color: var(--ink);
+      border-radius: 8px; padding: 6px 10px; font-size: 15px; cursor: pointer; line-height: 1;
+    }
+
+    /* ---------- LOGIN ---------- */
+    #login {
+      min-height: 100dvh; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 360px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px;
+      box-shadow: var(--shadow);
+    }
+    .login-head { display: flex; justify-content: space-between; align-items: flex-start; }
+    h1 { font-size: 19px; margin: 0 0 2px; letter-spacing: -.2px; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 2px 6px; text-transform: uppercase; letter-spacing: .4px; }
+    input, select {
+      width: 100%; font-size: 16px; padding: 12px 14px; color: var(--ink);
+      border: 1px solid var(--line); border-radius: 8px; background: var(--field); outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    .btn {
+      width: 100%; font-size: 15px; font-weight: 600; padding: 13px;
+      border: 0; border-radius: 8px; color: var(--accent-ink); margin-top: 20px; cursor: pointer;
+      background: var(--accent);
+    }
+    .btn:active { opacity: .85; }
+    .btn[disabled] { opacity: .5; cursor: default; }
+    .err { color: var(--red); font-size: 13px; margin-top: 10px; text-align: center; min-height: 16px; }
+
+    /* ---------- APP ---------- */
+    #app { min-height: 100dvh; display: flex; flex-direction: column; }
+    .topbar {
+      background: var(--card); border-bottom: 1px solid var(--line);
+      padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .title { font-weight: 700; font-size: 15px; letter-spacing: -.2px; }
+    .top-right { display: flex; align-items: center; gap: 10px; }
+    .counter { font-size: 13px; color: var(--muted); }
+    .counter b { color: var(--ink); font-size: 15px; }
+
+    .tabs {
+      display: flex; background: var(--card); border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      flex: 1; text-align: center; padding: 12px 0; font-size: 14px; font-weight: 600;
+      color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .stage { flex: 1; padding: 16px; max-width: 520px; width: 100%; margin: 0 auto; }
+
+    .banner {
+      border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+      background: var(--card);
+    }
+    .banner .icon { font-size: 24px; line-height: 1; }
+    .banner .msg { font-size: 15px; font-weight: 600; }
+    .banner.green { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .banner.amber { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+    .banner.red   { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+    .banner.idle .msg { color: var(--muted); font-weight: 500; }
+
+    .scanner-frame {
+      position: relative; border-radius: 12px; overflow: hidden; background: #000;
+      border: 1px solid var(--line); aspect-ratio: 1 / 1;
+    }
+    #reader { width: 100% !important; border: 0 !important; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover; display: block; }
+    #reader img[alt="Info icon"] { display: none; }
+    .frame-hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 10px; }
+    .cam-btn {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      padding: 11px 22px; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1);
+      color: #fff; font-size: 14px; font-weight: 600;
+    }
+    .cam-btn:active { background: rgba(255,255,255,.2); }
+
+    /* ---------- TẠO VÉ ---------- */
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 18px; box-shadow: var(--shadow);
+    }
+    .result-card { margin-top: 16px; text-align: center; }
+    .result-card img { border-radius: 8px; background: #fff; padding: 8px; }
+    .code-chip {
+      display: inline-block; margin-top: 10px; padding: 5px 14px; border-radius: 999px;
+      background: var(--field); border: 1px solid var(--line);
+      color: var(--accent); font-weight: 700; letter-spacing: .5px; font-size: 14px;
+    }
+    textarea {
+      width: 100%; height: 130px; font-size: 13px; line-height: 1.5; padding: 11px;
+      color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+      background: var(--field); resize: vertical; outline: none; font-family: inherit;
+      margin-top: 12px; text-align: left;
+    }
+    .qr-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .qr-actions .btn { margin-top: 0; }
+    .btn-ghost {
+      background: var(--card); color: var(--accent); border: 1px solid var(--line);
+    }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login">
+    <div class="login-card">
+      <div class="login-head">
+        <div>
+          <h1>My Gym Check-in</h1>
+          <p class="sub">Quét vé &amp; tạo vé sự kiện</p>
+        </div>
+        <button class="theme-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">◐</button>
+      </div>
+      <label for="pin">Mã PIN</label>
+      <input id="pin" type="password" placeholder="Nhập mã PIN" inputmode="numeric" autocomplete="off"
+             onkeydown="if(event.key==='Enter')startApp()">
+      <button id="loginBtn" class="btn" onclick="startApp()">Vào hệ thống</button>
+      <div id="loginErr" class="err"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <div class="topbar">
+      <div class="title">My Gym Check-in</div>
+      <div class="top-right">
+        <div class="counter"><b id="count">0</b> đã quét</div>
+        <button class="theme-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">◐</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div id="tabScan" class="tab active" onclick="showTab('scan')">Quét vé</div>
+      <div id="tabCreate" class="tab" onclick="showTab('create')">Tạo vé</div>
+    </div>
+
+    <!-- TAB QUÉT -->
+    <div id="paneScan" class="stage">
+      <div id="banner" class="banner idle">
+        <div class="icon">📷</div>
+        <div class="msg">Đưa mã QR của khách vào khung</div>
+      </div>
+      <div class="scanner-frame">
+        <div id="reader"></div>
+        <button id="camBtn" class="cam-btn hidden" onclick="requestCam()">Bật camera</button>
+      </div>
+      <div class="frame-hint">Giữ điện thoại cách mã QR khoảng 15–25cm</div>
+    </div>
+
+    <!-- TAB TẠO VÉ -->
+    <div id="paneCreate" class="stage hidden">
+      <div class="card">
+        <label for="fCoso">Cơ sở *</label>
+        <select id="fCoso"></select>
+        <label for="fTenBe">Tên bé *</label>
+        <input id="fTenBe" type="text" autocomplete="off">
+        <label for="fTenPH">Tên phụ huynh</label>
+        <input id="fTenPH" type="text" autocomplete="off">
+        <label for="fSdt">SĐT</label>
+        <input id="fSdt" type="tel" inputmode="tel" autocomplete="off">
+        <label for="fEmail">Email</label>
+        <input id="fEmail" type="email" inputmode="email" autocomplete="off">
+        <button id="createBtn" class="btn" onclick="doCreate()">Tạo vé</button>
+        <div id="createErr" class="err"></div>
+      </div>
+
+      <div id="resultCard" class="card result-card hidden">
+        <img id="rQr" width="200" height="200" alt="QR" crossorigin="anonymous">
+        <div><span id="rCode" class="code-chip"></span></div>
+        <div class="qr-actions">
+          <button id="dlQrBtn" class="btn btn-ghost" onclick="downloadQr()">⬇ Tải QR</button>
+          <button id="cpQrBtn" class="btn btn-ghost" onclick="copyQr()">⧉ Copy QR</button>
+        </div>
+        <textarea id="rMsg" readonly></textarea>
+        <button id="copyBtn" class="btn" onclick="copyMsg()">Copy nội dung gửi phụ huynh</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== DÁN LINK WEB APP (/exec) CỦA APPS SCRIPT VÀO ĐÂY ======
+    var API_URL = 'https://script.google.com/macros/s/AKfycbw3FqZFOHCbkD2gCMPrsF0DN9iVlOycqTgVkJwvn376IQinjQwofKyRh3YXhTfRNFRb/exec';
+    // ==============================================================
+
+    var pin = '', html5Qr = null, scanStarted = false, busy = false,
+        lastCode = '', lastAt = 0, okCount = 0, deviceInfo = '', ipAddr = '';
+    var ICONS = { OK: '✅', DUPLICATE: '⚠️', NOT_FOUND: '⛔', NET: '📶' };
+
+    /* ---------- Gọi API Apps Script ---------- */
+    function api(params) {
+      var qs = Object.keys(params).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]);
+      }).join('&');
+      return fetch(API_URL + '?' + qs).then(function (r) { return r.json(); });
+    }
+
+    /* ---------- Theme ---------- */
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('mg_theme', t);
+    }
+    function toggleTheme() {
+      applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    }
+    (function () {
+      var t = localStorage.getItem('mg_theme') ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyTheme(t);
+    })();
+
+    /* ---------- Thiết bị + IP (tự thu thập, best-effort) ---------- */
+    (function () {
+      var ua = navigator.userAgent;
+      var os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad'
+             : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac'
+             : /Windows/.test(ua) ? 'Windows' : 'Khác';
+      var br = /CriOS|Chrome/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox'
+             : /Safari/.test(ua) ? 'Safari' : '';
+      deviceInfo = os + (br ? ' · ' + br : '');
+      fetch('https://api.ipify.org?format=json')
+        .then(function (r) { return r.json(); })
+        .then(function (j) { ipAddr = j.ip || ''; })
+        .catch(function () {});
+    })();
+
+    /* ---------- Đăng nhập (chỉ PIN) ---------- */
+    function startApp() {
+      pin = document.getElementById('pin').value.trim();
+      var errEl = document.getElementById('loginErr');
+      if (!pin) { errEl.textContent = 'Vui lòng nhập PIN'; return; }
+      var btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.textContent = 'Đang kiểm tra…'; errEl.textContent = '';
+      api({ action: 'login', pin: pin })
+        .then(function (res) {
+          btn.disabled = false; btn.textContent = 'Vào hệ thống';
+          if (!res.ok) { errEl.textContent = res.message || 'Sai PIN'; return; }
+          fillBranches(res.branches || []);
+          document.getElementById('login').classList.add('hidden');
+          document.getElementById('app').classList.remove('hidden');
+          startScanner();
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Vào hệ thống';
+          errEl.textContent = 'Lỗi mạng — thử lại';
+        });
+    }
+
+    function fillBranches(branches) {
+      var sel = document.getElementById('fCoso');
+      sel.innerHTML = '';
+      branches.forEach(function (b) {
+        var o = document.createElement('option');
+        o.value = b.label; o.textContent = b.label;
+        sel.appendChild(o);
+      });
+    }
+
+    /* ---------- Tabs ---------- */
+    function showTab(t) {
+      var scan = t === 'scan';
+      document.getElementById('tabScan').classList.toggle('active', scan);
+      document.getElementById('tabCreate').classList.toggle('active', !scan);
+      document.getElementById('paneScan').classList.toggle('hidden', !scan);
+      document.getElementById('paneCreate').classList.toggle('hidden', scan);
+      if (html5Qr && scanStarted) {
+        try { scan ? html5Qr.resume() : html5Qr.pause(true); } catch (e) {}
+      }
+    }
+
+    /* ---------- Quét ---------- */
+    /* Gọi trực tiếp từ chạm tay -> trình duyệt mới chịu hiện hộp xin quyền */
+    function requestCam() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showBanner('red', '📷', 'Trình duyệt không hỗ trợ camera — thử Chrome/Safari');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function (stream) {
+          stream.getTracks().forEach(function (t) { t.stop(); }); // chỉ xin quyền, nhả ngay cho scanner
+          startScanner();
+        })
+        .catch(function (err) {
+          showBanner('red', '📷', (err && err.name === 'NotAllowedError')
+            ? 'Camera bị chặn. Mở cài đặt trang web của trình duyệt → Camera → Cho phép, rồi tải lại trang'
+            : 'Không truy cập được camera trên thiết bị này');
+        });
+    }
+
+    function startScanner() {
+      if (scanStarted) return;
+      // tạo lại scanner từ đầu (instance cũ kẹt trạng thái sau lần start lỗi)
+      document.getElementById('reader').innerHTML = '';
+      html5Qr = new Html5Qrcode('reader');
+      var cfg = {
+        fps: 10,
+        qrbox: function (w, h) { var m = Math.min(w, h); var s = Math.floor(m * 0.7); return { width: s, height: s }; },
+        aspectRatio: 1
+      };
+      html5Qr.start({ facingMode: 'environment' }, cfg, onScan, function () {})
+        .then(function () {
+          scanStarted = true;
+          document.getElementById('camBtn').classList.add('hidden');
+          showBanner('idle', '📷', 'Đưa mã QR của khách vào khung');
+        })
+        .catch(function () {
+          showBanner('red', '📷', 'Chưa mở được camera — bấm "Bật camera" trong khung');
+          document.getElementById('camBtn').classList.remove('hidden');
+        });
+    }
+
+    function onScan(code) {
+      var now = Date.now();
+      if (busy) return;
+      if (code === lastCode && (now - lastAt) < 3000) return; // tránh quét lặp cùng 1 mã
+      busy = true; lastCode = code; lastAt = now;
+      api({ action: 'scan', code: code, pin: pin, device: deviceInfo, ip: ipAddr })
+        .then(function (res) { showResult(res); busy = false; })
+        .catch(function () { showBanner('red', ICONS.NET, 'Lỗi mạng — quét lại'); busy = false; });
+    }
+
+    function showResult(res) {
+      if (res.result === 'BAD_PIN') { alert('Sai PIN. Tải lại trang và nhập đúng PIN.'); return; }
+      if (res.result === 'OK') { okCount++; document.getElementById('count').textContent = okCount; }
+      showBanner(res.color, ICONS[res.result] || '•', res.message);
+      if (navigator.vibrate) navigator.vibrate(res.result === 'OK' ? 80 : [60, 50, 60]);
+    }
+
+    function showBanner(color, icon, msg) {
+      var b = document.getElementById('banner');
+      b.className = 'banner ' + color;
+      b.innerHTML = '<div class="icon">' + icon + '</div><div class="msg"></div>';
+      b.querySelector('.msg').textContent = msg;
+    }
+
+    /* ---------- Tạo vé ---------- */
+    function doCreate() {
+      var errEl = document.getElementById('createErr');
+      var tenBe = document.getElementById('fTenBe').value.trim();
+      if (!tenBe) { errEl.textContent = 'Vui lòng nhập tên bé'; return; }
+      var btn = document.getElementById('createBtn');
+      btn.disabled = true; btn.textContent = 'Đang tạo…'; errEl.textContent = '';
+      api({
+        action: 'create', pin: pin,
+        coso: document.getElementById('fCoso').value,
+        tenBe: tenBe,
+        tenPH: document.getElementById('fTenPH').value,
+        sdt: document.getElementById('fSdt').value,
+        email: document.getElementById('fEmail').value,
+        device: deviceInfo, ip: ipAddr
+      })
+        .then(function (res) {
+          btn.disabled = false; btn.textContent = 'Tạo vé';
+          if (!res.ok) { errEl.textContent = res.message || 'Không tạo được vé'; return; }
+          document.getElementById('rQr').src = res.qrUrl;
+          document.getElementById('rCode').textContent = res.maVe;
+          document.getElementById('rMsg').value = res.message;
+          document.getElementById('resultCard').classList.remove('hidden');
+          document.getElementById('fTenBe').value = '';
+          document.getElementById('fTenPH').value = '';
+          document.getElementById('fSdt').value = '';
+          document.getElementById('fEmail').value = '';
+          document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Tạo vé';
+          errEl.textContent = 'Lỗi mạng — thử lại';
+        });
+    }
+
+    function fetchQrBlob() {
+      return fetch(document.getElementById('rQr').src).then(function (r) {
+        if (!r.ok) throw new Error('fetch fail');
+        return r.blob();
+      });
+    }
+
+    function flashBtn(id, txt, original) {
+      var b = document.getElementById(id);
+      b.textContent = txt;
+      setTimeout(function () { b.textContent = original; }, 2200);
+    }
+
+    function downloadQr() {
+      fetchQrBlob().then(function (blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 've-' + document.getElementById('rCode').textContent + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        flashBtn('dlQrBtn', '✓ Đã tải', '⬇ Tải QR');
+      }).catch(function () {
+        // dự phòng: mở ảnh tab mới để bấm giữ lưu thủ công
+        window.open(document.getElementById('rQr').src, '_blank');
+      });
+    }
+
+    function copyQr() {
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        flashBtn('cpQrBtn', 'Trình duyệt không hỗ trợ', '⧉ Copy QR');
+        return;
+      }
+      fetchQrBlob().then(function (blob) {
+        return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      }).then(function () {
+        flashBtn('cpQrBtn', '✓ Đã copy ảnh', '⧉ Copy QR');
+      }).catch(function () {
+        flashBtn('cpQrBtn', 'Không copy được — dùng Tải QR', '⧉ Copy QR');
+      });
+    }
+
+    function copyMsg() {
+      var t = document.getElementById('rMsg');
+      t.select(); t.setSelectionRange(0, 99999);
+      try { document.execCommand('copy'); } catch (e) {}
+      if (navigator.clipboard) { navigator.clipboard.writeText(t.value).catch(function () {}); }
+      var b = document.getElementById('copyBtn');
+      b.textContent = '✓ Đã copy — dán vào Zalo/Mess';
+      setTimeout(function () { b.textContent = 'Copy nội dung gửi phụ huynh'; }, 2200);
+    }
+  </script>
+</body>
+</html>
