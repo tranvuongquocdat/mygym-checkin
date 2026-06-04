@@ -99,10 +99,10 @@
 
     .scanner-frame {
       position: relative; border-radius: 12px; overflow: hidden; background: #000;
-      border: 1px solid var(--line); aspect-ratio: 1 / 1;
+      border: 1px solid var(--line); min-height: 240px;
     }
     #reader { width: 100% !important; border: 0 !important; }
-    #reader video { width: 100% !important; height: 100% !important; object-fit: cover; display: block; }
+    #reader video { width: 100% !important; height: auto !important; display: block; }
     #reader img[alt="Info icon"] { display: none; }
     .frame-hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 10px; }
     .cam-btn {
@@ -437,6 +437,10 @@
 
     function submitCode(code) {
       busy = true;
+      // phản hồi ngay khi bắt được mã: bíp nhẹ + rung + banner chờ
+      try { initAudio(); tone(660, 0, 0.08, 0.2); } catch (e) {}
+      if (navigator.vibrate) navigator.vibrate(40);
+      showBanner('idle', '⏳', 'Đã nhận ' + code + ' — đang kiểm tra…');
       api({ action: 'scan', code: code, pin: pin, device: deviceInfo, ip: ipAddr })
         .then(function (res) {
           if (!showResult(res)) busy = false; // popup mở thì giữ busy đến khi bấm OK
