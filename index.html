@@ -113,6 +113,32 @@
     }
     .cam-btn:active { background: rgba(255,255,255,.2); }
 
+    .manual { display: flex; gap: 10px; margin-top: 14px; }
+    .manual input { flex: 1; text-transform: uppercase; }
+    .manual input::placeholder { text-transform: none; }
+    .manual .btn { width: auto; margin-top: 0; padding: 12px 20px; }
+
+    /* ---------- POPUP CHECK-IN ---------- */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal {
+      width: 100%; max-width: 330px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 14px; padding: 24px 20px;
+      text-align: center;
+    }
+    .modal .m-icon { font-size: 46px; line-height: 1; }
+    .modal h2 { margin: 10px 0 14px; font-size: 17px; }
+    .m-rows { text-align: left; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .m-row {
+      display: flex; justify-content: space-between; gap: 12px;
+      padding: 9px 13px; font-size: 14px;
+    }
+    .m-row + .m-row { border-top: 1px solid var(--line); }
+    .m-row .k { color: var(--muted); }
+    .m-row .v { font-weight: 600; text-align: right; }
+
     /* ---------- TẠO VÉ ---------- */
     .card {
       background: var(--card); border: 1px solid var(--line); border-radius: 12px;
@@ -182,6 +208,25 @@
         <button id="camBtn" class="cam-btn hidden" onclick="requestCam()">Bật camera</button>
       </div>
       <div class="frame-hint">Giữ điện thoại cách mã QR khoảng 15–25cm</div>
+      <div class="manual">
+        <input id="manualCode" placeholder="Hoặc nhập mã vé: MG-AQ-0001" autocomplete="off"
+               autocapitalize="characters" onkeydown="if(event.key==='Enter')manualCheckin()">
+        <button class="btn" onclick="manualCheckin()">Check-in</button>
+      </div>
+    </div>
+
+    <!-- POPUP CHECK-IN THÀNH CÔNG -->
+    <div id="okModal" class="overlay hidden">
+      <div class="modal">
+        <div class="m-icon">✅</div>
+        <h2>Check-in thành công</h2>
+        <div class="m-rows">
+          <div class="m-row"><span class="k">Tên bé</span><span class="v" id="mTenBe"></span></div>
+          <div class="m-row"><span class="k">Cơ sở</span><span class="v" id="mCoso"></span></div>
+          <div class="m-row"><span class="k">Mã vé</span><span class="v" id="mMaVe"></span></div>
+        </div>
+        <button class="btn" onclick="closeModal()">OK — tiếp tục quét</button>
+      </div>
     </div>
 
     <!-- TAB TẠO VÉ -->
@@ -260,8 +305,34 @@
         .catch(function () {});
     })();
 
+    /* ---------- Âm thanh (Web Audio, không cần file) ---------- */
+    var actx = null;
+    function initAudio() {
+      try {
+        if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+        if (actx.state === 'suspended') actx.resume();
+      } catch (e) {}
+    }
+    function tone(freq, delay, dur, vol, type) {
+      var t = actx.currentTime + delay;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + dur + 0.05);
+    }
+    function tingTing() { // thành công: 2 nốt cao vui tai
+      try { initAudio(); tone(1047, 0, 0.25, 0.35); tone(1568, 0.13, 0.35, 0.35); } catch (e) {}
+    }
+    function buzz() { // lỗi/trùng: 1 tiếng trầm
+      try { initAudio(); tone(220, 0, 0.3, 0.3, 'square'); } catch (e) {}
+    }
+
     /* ---------- Đăng nhập (chỉ PIN) ---------- */
     function startApp() {
+      initAudio(); // mở khóa âm thanh từ thao tác chạm (iOS bắt buộc)
       pin = document.getElementById('pin').value.trim();
       var errEl = document.getElementById('loginErr');
       if (!pin) { errEl.textContent = 'Vui lòng nhập PIN'; return; }
@@ -349,17 +420,52 @@
       var now = Date.now();
       if (busy) return;
       if (code === lastCode && (now - lastAt) < 3000) return; // tránh quét lặp cùng 1 mã
-      busy = true; lastCode = code; lastAt = now;
+      lastCode = code; lastAt = now;
+      submitCode(code);
+    }
+
+    function manualCheckin() {
+      if (busy) return;
+      var inp = document.getElementById('manualCode');
+      var code = inp.value.trim().toUpperCase();
+      if (!code) return;
+      inp.value = '';
+      inp.blur();
+      submitCode(code);
+    }
+
+    function submitCode(code) {
+      busy = true;
       api({ action: 'scan', code: code, pin: pin, device: deviceInfo, ip: ipAddr })
-        .then(function (res) { showResult(res); busy = false; })
+        .then(function (res) {
+          if (!showResult(res)) busy = false; // popup mở thì giữ busy đến khi bấm OK
+        })
         .catch(function () { showBanner('red', ICONS.NET, 'Lỗi mạng — quét lại'); busy = false; });
     }
 
+    /* Trả về true nếu mở popup (giữ busy) */
     function showResult(res) {
-      if (res.result === 'BAD_PIN') { alert('Sai PIN. Tải lại trang và nhập đúng PIN.'); return; }
-      if (res.result === 'OK') { okCount++; document.getElementById('count').textContent = okCount; }
+      if (res.result === 'BAD_PIN') { alert('Sai PIN. Tải lại trang và nhập đúng PIN.'); return false; }
+      if (res.result === 'OK') {
+        okCount++; document.getElementById('count').textContent = okCount;
+        tingTing();
+        if (navigator.vibrate) navigator.vibrate(80);
+        document.getElementById('mTenBe').textContent = res.tenBe || '—';
+        document.getElementById('mCoso').textContent = res.coso || '—';
+        document.getElementById('mMaVe').textContent = res.maVe || '—';
+        document.getElementById('okModal').classList.remove('hidden');
+        return true;
+      }
+      buzz();
+      if (navigator.vibrate) navigator.vibrate([60, 50, 60]);
       showBanner(res.color, ICONS[res.result] || '•', res.message);
-      if (navigator.vibrate) navigator.vibrate(res.result === 'OK' ? 80 : [60, 50, 60]);
+      return false;
+    }
+
+    function closeModal() {
+      document.getElementById('okModal').classList.add('hidden');
+      showBanner('idle', '📷', 'Đưa mã QR của khách vào khung');
+      busy = false;
     }
 
     function showBanner(color, icon, msg) {
