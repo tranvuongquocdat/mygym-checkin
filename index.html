@@ -215,15 +215,16 @@
       </div>
     </div>
 
-    <!-- POPUP CHECK-IN THÀNH CÔNG -->
+    <!-- POPUP KẾT QUẢ CHECK-IN -->
     <div id="okModal" class="overlay hidden">
       <div class="modal">
-        <div class="m-icon">✅</div>
-        <h2>Check-in thành công</h2>
+        <div class="m-icon" id="mIcon">✅</div>
+        <h2 id="mTitle">Check-in thành công</h2>
         <div class="m-rows">
           <div class="m-row"><span class="k">Tên bé</span><span class="v" id="mTenBe"></span></div>
           <div class="m-row"><span class="k">Cơ sở</span><span class="v" id="mCoso"></span></div>
           <div class="m-row"><span class="k">Mã vé</span><span class="v" id="mMaVe"></span></div>
+          <div class="m-row hidden" id="mGioRow"><span class="k">Đã check-in lúc</span><span class="v" id="mGio"></span></div>
         </div>
         <button class="btn" onclick="closeModal()">OK — tiếp tục quét</button>
       </div>
@@ -443,16 +444,26 @@
         .catch(function () { showBanner('red', ICONS.NET, 'Lỗi mạng — quét lại'); busy = false; });
     }
 
-    /* Trả về true nếu mở popup (giữ busy) */
+    /* Trả về true nếu mở popup (giữ busy đến khi bấm OK) */
     function showResult(res) {
       if (res.result === 'BAD_PIN') { alert('Sai PIN. Tải lại trang và nhập đúng PIN.'); return false; }
-      if (res.result === 'OK') {
-        okCount++; document.getElementById('count').textContent = okCount;
-        tingTing();
-        if (navigator.vibrate) navigator.vibrate(80);
+      var ok = res.result === 'OK', dup = res.result === 'DUPLICATE';
+      if (ok || dup) {
+        if (ok) {
+          okCount++; document.getElementById('count').textContent = okCount;
+          tingTing();
+          if (navigator.vibrate) navigator.vibrate(80);
+        } else {
+          buzz();
+          if (navigator.vibrate) navigator.vibrate([60, 50, 60]);
+        }
+        document.getElementById('mIcon').textContent = ok ? '✅' : '⚠️';
+        document.getElementById('mTitle').textContent = ok ? 'Check-in thành công' : 'Vé ĐÃ check-in trước đó';
         document.getElementById('mTenBe').textContent = res.tenBe || '—';
         document.getElementById('mCoso').textContent = res.coso || '—';
         document.getElementById('mMaVe').textContent = res.maVe || '—';
+        document.getElementById('mGioRow').classList.toggle('hidden', !(dup && res.gio));
+        document.getElementById('mGio').textContent = res.gio || '';
         document.getElementById('okModal').classList.remove('hidden');
         return true;
       }
