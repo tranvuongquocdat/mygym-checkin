@@ -144,6 +144,8 @@
       background: var(--card); border: 1px solid var(--line); border-radius: 12px;
       padding: 18px; box-shadow: var(--shadow);
     }
+    .row2 { display: flex; gap: 10px; }
+    .row2 > div { flex: 1; }
     .result-card { margin-top: 16px; text-align: center; }
     .result-card img { border-radius: 8px; background: #fff; padding: 8px; }
     .code-chip {
@@ -152,7 +154,7 @@
       color: var(--accent); font-weight: 700; letter-spacing: .5px; font-size: 14px;
     }
     textarea {
-      width: 100%; height: 130px; font-size: 13px; line-height: 1.5; padding: 11px;
+      width: 100%; height: 180px; font-size: 13px; line-height: 1.5; padding: 11px;
       color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
       background: var(--field); resize: vertical; outline: none; font-family: inherit;
       margin-top: 12px; text-align: left;
@@ -209,8 +211,8 @@
       </div>
       <div class="frame-hint">Giữ điện thoại cách mã QR khoảng 15–25cm</div>
       <div class="manual">
-        <input id="manualCode" placeholder="Hoặc nhập mã vé: MG-AQ-0001" autocomplete="off"
-               autocapitalize="characters" onkeydown="if(event.key==='Enter')manualCheckin()">
+        <input id="manualCode" placeholder="Hoặc nhập SĐT của khách" autocomplete="off"
+               type="tel" inputmode="tel" onkeydown="if(event.key==='Enter')manualCheckin()">
         <button class="btn" onclick="manualCheckin()">Check-in</button>
       </div>
     </div>
@@ -221,9 +223,12 @@
         <div class="m-icon" id="mIcon">✅</div>
         <h2 id="mTitle">Check-in thành công</h2>
         <div class="m-rows">
-          <div class="m-row"><span class="k">Tên bé</span><span class="v" id="mTenBe"></span></div>
-          <div class="m-row"><span class="k">Cơ sở</span><span class="v" id="mCoso"></span></div>
-          <div class="m-row"><span class="k">Mã vé</span><span class="v" id="mMaVe"></span></div>
+          <div class="m-row"><span class="k">Mã code</span><span class="v" id="mMaQua"></span></div>
+          <div class="m-row"><span class="k">Phụ huynh</span><span class="v" id="mTenPH"></span></div>
+          <div class="m-row"><span class="k">Loại</span><span class="v" id="mLoai"></span></div>
+          <div class="m-row"><span class="k">Số bé / PH</span><span class="v" id="mSoBePh"></span></div>
+          <div class="m-row"><span class="k">SBD</span><span class="v" id="mStt"></span></div>
+          <div class="m-row"><span class="k">SĐT</span><span class="v" id="mMaVe"></span></div>
           <div class="m-row hidden" id="mGioRow"><span class="k">Đã check-in lúc</span><span class="v" id="mGio"></span></div>
         </div>
         <button class="btn" onclick="closeModal()">OK — tiếp tục quét</button>
@@ -233,16 +238,29 @@
     <!-- TAB TẠO VÉ -->
     <div id="paneCreate" class="stage hidden">
       <div class="card">
-        <label for="fCoso">Cơ sở *</label>
-        <select id="fCoso"></select>
-        <label for="fTenBe">Tên bé *</label>
-        <input id="fTenBe" type="text" autocomplete="off">
-        <label for="fTenPH">Tên phụ huynh</label>
+        <label for="fLoai">Loại member *</label>
+        <select id="fLoai"></select>
+
+        <div class="row2">
+          <div>
+            <label for="fSoBe">Số lượng bé</label>
+            <input id="fSoBe" type="number" min="1" value="1">
+          </div>
+          <div>
+            <label for="fSoPH">Số lượng phụ huynh</label>
+            <input id="fSoPH" type="number" min="1" value="1">
+          </div>
+        </div>
+
+        <label for="fTenPH">Họ tên phụ huynh *</label>
         <input id="fTenPH" type="text" autocomplete="off">
-        <label for="fSdt">SĐT</label>
-        <input id="fSdt" type="tel" inputmode="tel" autocomplete="off">
-        <label for="fEmail">Email</label>
-        <input id="fEmail" type="email" inputmode="email" autocomplete="off">
+
+        <label for="fSdt">SĐT (Zalo) *</label>
+        <input id="fSdt" type="tel" inputmode="tel" autocomplete="off" placeholder="Dùng làm mã vé">
+
+        <label for="fMaQua">Mã quà</label>
+        <input id="fMaQua" type="text" autocomplete="off" placeholder="VD: A, AB, BCD…">
+
         <button id="createBtn" class="btn" onclick="doCreate()">Tạo vé</button>
         <div id="createErr" class="err"></div>
       </div>
@@ -343,7 +361,7 @@
         .then(function (res) {
           btn.disabled = false; btn.textContent = 'Vào hệ thống';
           if (!res.ok) { errEl.textContent = res.message || 'Sai PIN'; return; }
-          fillBranches(res.branches || []);
+          fillMemberTypes(res.memberTypes || []);
           document.getElementById('login').classList.add('hidden');
           document.getElementById('app').classList.remove('hidden');
           startScanner();
@@ -354,12 +372,12 @@
         });
     }
 
-    function fillBranches(branches) {
-      var sel = document.getElementById('fCoso');
+    function fillMemberTypes(types) {
+      var sel = document.getElementById('fLoai');
       sel.innerHTML = '';
-      branches.forEach(function (b) {
+      types.forEach(function (t) {
         var o = document.createElement('option');
-        o.value = b.label; o.textContent = b.label;
+        o.value = t.label; o.textContent = t.label;
         sel.appendChild(o);
       });
     }
@@ -428,7 +446,7 @@
     function manualCheckin() {
       if (busy) return;
       var inp = document.getElementById('manualCode');
-      var code = inp.value.trim().toUpperCase();
+      var code = inp.value.replace(/\D+/g, '');
       if (!code) return;
       inp.value = '';
       inp.blur();
@@ -463,8 +481,11 @@
         }
         document.getElementById('mIcon').textContent = ok ? '✅' : '⚠️';
         document.getElementById('mTitle').textContent = ok ? 'Check-in thành công' : 'Vé ĐÃ check-in trước đó';
-        document.getElementById('mTenBe').textContent = res.tenBe || '—';
-        document.getElementById('mCoso').textContent = res.coso || '—';
+        document.getElementById('mMaQua').textContent = res.maQua || '—';
+        document.getElementById('mTenPH').textContent = res.tenPH || '—';
+        document.getElementById('mLoai').textContent = res.loaiMember || '—';
+        document.getElementById('mSoBePh').textContent = (res.soBe || '?') + ' / ' + (res.soPH || '?');
+        document.getElementById('mStt').textContent = res.stt || '—';
         document.getElementById('mMaVe').textContent = res.maVe || '—';
         document.getElementById('mGioRow').classList.toggle('hidden', !(dup && res.gio));
         document.getElementById('mGio').textContent = res.gio || '';
@@ -493,17 +514,20 @@
     /* ---------- Tạo vé ---------- */
     function doCreate() {
       var errEl = document.getElementById('createErr');
-      var tenBe = document.getElementById('fTenBe').value.trim();
-      if (!tenBe) { errEl.textContent = 'Vui lòng nhập tên bé'; return; }
+      var tenPH = document.getElementById('fTenPH').value.trim();
+      var sdt = document.getElementById('fSdt').value.trim();
+      if (!tenPH) { errEl.textContent = 'Vui lòng nhập tên phụ huynh'; return; }
+      if (!sdt) { errEl.textContent = 'Vui lòng nhập SĐT'; return; }
       var btn = document.getElementById('createBtn');
       btn.disabled = true; btn.textContent = 'Đang tạo…'; errEl.textContent = '';
       api({
         action: 'create', pin: pin,
-        coso: document.getElementById('fCoso').value,
-        tenBe: tenBe,
-        tenPH: document.getElementById('fTenPH').value,
-        sdt: document.getElementById('fSdt').value,
-        email: document.getElementById('fEmail').value,
+        loaiMember: document.getElementById('fLoai').value,
+        soBe: document.getElementById('fSoBe').value,
+        soPH: document.getElementById('fSoPH').value,
+        tenPH: tenPH,
+        sdt: sdt,
+        maQua: document.getElementById('fMaQua').value,
         device: deviceInfo, ip: ipAddr
       })
         .then(function (res) {
@@ -513,10 +537,9 @@
           document.getElementById('rCode').textContent = res.maVe;
           document.getElementById('rMsg').value = res.message;
           document.getElementById('resultCard').classList.remove('hidden');
-          document.getElementById('fTenBe').value = '';
-          document.getElementById('fTenPH').value = '';
-          document.getElementById('fSdt').value = '';
-          document.getElementById('fEmail').value = '';
+          ['fTenPH', 'fSdt', 'fMaQua'].forEach(function (id) { document.getElementById(id).value = ''; });
+          document.getElementById('fSoBe').value = '1';
+          document.getElementById('fSoPH').value = '1';
           document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
         })
         .catch(function () {
