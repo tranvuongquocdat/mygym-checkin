@@ -252,7 +252,7 @@
           </div>
         </div>
 
-        <label for="fTenPH">Họ tên phụ huynh *</label>
+        <label for="fTenPH">Họ tên phụ huynh</label>
         <input id="fTenPH" type="text" autocomplete="off">
 
         <label for="fSdt">SĐT (Zalo) *</label>
@@ -514,9 +514,7 @@
     /* ---------- Tạo vé ---------- */
     function doCreate() {
       var errEl = document.getElementById('createErr');
-      var tenPH = document.getElementById('fTenPH').value.trim();
       var sdt = document.getElementById('fSdt').value.trim();
-      if (!tenPH) { errEl.textContent = 'Vui lòng nhập tên phụ huynh'; return; }
       if (!sdt) { errEl.textContent = 'Vui lòng nhập SĐT'; return; }
       var btn = document.getElementById('createBtn');
       btn.disabled = true; btn.textContent = 'Đang tạo…'; errEl.textContent = '';
@@ -525,7 +523,7 @@
         loaiMember: document.getElementById('fLoai').value,
         soBe: document.getElementById('fSoBe').value,
         soPH: document.getElementById('fSoPH').value,
-        tenPH: tenPH,
+        tenPH: document.getElementById('fTenPH').value,
         sdt: sdt,
         maQua: document.getElementById('fMaQua').value,
         device: deviceInfo, ip: ipAddr
